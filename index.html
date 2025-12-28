@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lockin Club - Timelapse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;400;700&family=Inter:wght@300;400;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: black;
+            color: white;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .bg-radial-gradient {
+            background: radial-gradient(circle, transparent 0%, rgba(0,0,0,0.6) 100%);
+        }
+
+        .animate-pulse-fast {
+            animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .3; }
+        }
+
+        .summary-transition {
+            transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bar-transition {
+            transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="h-screen w-full">
+
+    <!-- Background Video Layer -->
+    <div id="videoContainer" class="absolute inset-0 z-0 bg-neutral-900 overflow-hidden">
+        <video id="cameraFeed" autoplay playsinline muted class="w-full h-full object-cover opacity-80 scale-100 transition-all duration-1000"></video>
+        <div id="overlayGradient" class="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/90 pointer-events-none"></div>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <div id="recordingUI" class="relative h-full flex flex-col items-center z-10 transition-opacity duration-500">
+        <header class="pt-16 w-full flex justify-center pointer-events-none">
+            <h1 class="text-sm tracking-[0.6em] font-light uppercase text-white/90">
+                lockin<span class="opacity-40">.club</span>
+            </h1>
+        </header>
+
+        <main class="flex-1 flex flex-col items-center justify-center gap-2 px-6 text-center">
+            <span id="sessionStatus" class="text-[10px] tracking-[0.4em] text-white/30 uppercase">Focus Session</span>
+            <h2 id="timerDisplay" class="text-7xl font-mono tracking-tighter tabular-nums font-extralight transition-opacity duration-300">00:00</h2>
+            <div id="liveIndicator" class="hidden items-center gap-2 mt-4 animate-pulse-fast">
+                <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                <span class="text-[8px] tracking-[0.3em] uppercase text-white/50">Live</span>
+            </div>
+        </main>
+
+        <footer class="pb-24 w-full flex justify-center items-center gap-12 px-6">
+            <!-- Start Button -->
+            <button id="startBtn" class="group relative w-20 h-20 flex items-center justify-center">
+                <div class="absolute inset-0 border-[0.5px] border-white/20 rounded-full"></div>
+                <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="black" class="ml-1"><path d="m7 4 12 8-12 8V4z"/></svg>
+                </div>
+            </button>
+
+            <!-- Active Controls (Hidden initially) -->
+            <div id="activeControls" class="hidden items-center gap-12">
+                <button id="pauseBtn" class="flex flex-col items-center gap-3 group">
+                    <div id="pauseIconContainer" class="w-14 h-14 rounded-full border border-white/20 flex items-center justify-center bg-white/5 text-white transition-all">
+                        <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect width="4" height="16" x="6" y="4" rx="1"/><rect width="4" height="16" x="14" y="4" rx="1"/></svg>
+                    </div>
+                    <span id="pauseLabel" class="text-[8px] uppercase tracking-[0.2em] text-white/40">Pause</span>
+                </button>
+                <button id="stopBtn" class="flex flex-col items-center gap-3 group">
+                    <div class="w-20 h-20 rounded-full border-[0.5px] border-white/40 flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors">
+                        <div class="w-8 h-8 bg-white rounded-sm"></div>
+                    </div>
+                    <span class="text-[8px] uppercase tracking-[0.2em] font-bold">Complete</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ANALYTICS VIEW -->
+    <div id="summaryUI" class="hidden absolute inset-0 h-full flex flex-col z-20 bg-black/40 backdrop-blur-md opacity-0 translate-y-8 transition-all duration-700">
+        <header class="pt-20 px-8 flex flex-col items-center text-center">
+            <h1 class="text-xs tracking-[0.6em] font-light uppercase text-white/40 mb-3">lockin.club</h1>
+            <h2 class="text-3xl font-black tracking-tighter uppercase text-white">Session Analyzed</h2>
+        </header>
+
+        <main class="px-10 mt-16 flex flex-col items-center flex-1">
+            <div class="flex flex-col items-center text-center mb-16 gap-10 w-full">
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] uppercase tracking-[0.4em] text-white/30 mb-4">Duration Lockin</span>
+                    <div class="flex items-baseline justify-center gap-2">
+                        <span id="totalHoursDisplay" class="text-7xl font-mono tracking-tighter tabular-nums leading-none">0.00</span>
+                        <span class="text-lg font-bold opacity-30 tracking-widest">HRS</span>
+                    </div>
+                </div>
+                
+                <div class="w-8 h-px bg-white/20"></div>
+
+                <div class="flex justify-center gap-16 w-full">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[9px] uppercase tracking-[0.3em] text-white/30 mb-2">Interval</span>
+                        <span class="text-2xl font-mono tracking-tighter">5S</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[9px] uppercase tracking-[0.3em] text-white/30 mb-2">Consistency</span>
+                        <span class="text-2xl font-mono tracking-tighter">92%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full max-w-sm flex flex-col gap-8">
+                <div id="graphContainer" class="h-40 flex items-end justify-between px-2 relative">
+                    <div class="absolute bottom-[26px] left-0 right-0 h-px bg-white/5"></div>
+                    <!-- Bars injected via JS -->
+                </div>
+                <div class="flex justify-center">
+                    <span class="text-[9px] tracking-[0.4em] uppercase text-white/20 font-medium">7-Day Intensity Profile</span>
+                </div>
+            </div>
+        </main>
+
+        <footer class="pb-16 px-10 flex flex-col items-center gap-8">
+            <div class="flex items-center gap-12">
+                <button id="resetBtn" class="flex flex-col items-center gap-3 group">
+                    <div class="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-white/40"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    </div>
+                    <span class="text-[9px] uppercase tracking-widest text-white/20">Discard</span>
+                </button>
+
+                <button class="flex flex-col items-center gap-3 group">
+                    <div class="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-white/40"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
+                    </div>
+                    <span class="text-[9px] uppercase tracking-widest text-white/20">Export</span>
+                </button>
+            </div>
+
+            <button class="w-full max-w-xs h-16 bg-white text-black rounded-full text-[11px] uppercase tracking-[0.5em] font-black hover:scale-[1.03] transition-transform active:scale-95">
+                Join lockin.club
+            </button>
+        </footer>
+    </div>
+
+    <!-- Decor -->
+    <div class="absolute top-1/2 left-6 h-12 w-px bg-white/10 hidden md:block"></div>
+    <div class="absolute top-1/2 right-6 h-12 w-px bg-white/10 hidden md:block"></div>
+
+    <script>
+        let isRecording = false;
+        let isPaused = false;
+        let elapsedTime = 0;
+        let timerInterval = null;
+
+        const weeklyData = [
+            { day: 'MON', hours: 2.4 },
+            { day: 'TUE', hours: 4.1 },
+            { day: 'WED', hours: 1.8 },
+            { day: 'THU', hours: 3.5 },
+            { day: 'FRI', hours: 0.0 }, // Today
+            { day: 'SAT', hours: 0.5 },
+            { day: 'SUN', hours: 2.1 },
+        ];
+
+        // UI Elements
+        const timerDisplay = document.getElementById('timerDisplay');
+        const sessionStatus = document.getElementById('sessionStatus');
+        const liveIndicator = document.getElementById('liveIndicator');
+        const startBtn = document.getElementById('startBtn');
+        const activeControls = document.getElementById('activeControls');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseIconContainer = document.getElementById('pauseIconContainer');
+        const pauseLabel = document.getElementById('pauseLabel');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const recordingUI = document.getElementById('recordingUI');
+        const summaryUI = document.getElementById('summaryUI');
+        const totalHoursDisplay = document.getElementById('totalHoursDisplay');
+        const graphContainer = document.getElementById('graphContainer');
+        const cameraFeed = document.getElementById('cameraFeed');
+
+        // Camera Initialization
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { aspectRatio: 9/16 }, 
+                    audio: false 
+                });
+                cameraFeed.srcObject = stream;
+            } catch (err) {
+                console.error("Camera access denied:", err);
+            }
+        }
+
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimer() {
+            elapsedTime++;
+            timerDisplay.textContent = formatTime(elapsedTime);
+        }
+
+        function startSession() {
+            isRecording = true;
+            isPaused = false;
+            startBtn.classList.add('hidden');
+            activeControls.classList.remove('hidden');
+            activeControls.classList.add('flex');
+            liveIndicator.classList.remove('hidden');
+            liveIndicator.classList.add('flex');
+            sessionStatus.textContent = 'Focus Session';
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                clearInterval(timerInterval);
+                timerDisplay.classList.add('opacity-40');
+                sessionStatus.textContent = 'Session Paused';
+                pauseIconContainer.classList.replace('bg-white/5', 'bg-white');
+                pauseIconContainer.classList.replace('text-white', 'text-black');
+                pauseLabel.textContent = 'Resume';
+                liveIndicator.classList.replace('flex', 'hidden');
+            } else {
+                timerInterval = setInterval(updateTimer, 1000);
+                timerDisplay.classList.remove('opacity-40');
+                sessionStatus.textContent = 'Focus Session';
+                pauseIconContainer.classList.replace('bg-white', 'bg-white/5');
+                pauseIconContainer.classList.replace('text-black', 'text-white');
+                pauseLabel.textContent = 'Pause';
+                liveIndicator.classList.replace('hidden', 'flex');
+            }
+        }
+
+        function completeSession() {
+            clearInterval(timerInterval);
+            isRecording = false;
+            const hours = (elapsedTime / 3600).toFixed(2);
+            totalHoursDisplay.textContent = hours;
+            
+            // Update Friday bar
+            weeklyData[4].hours = parseFloat(hours) || 0.1;
+            renderGraph();
+
+            recordingUI.classList.add('opacity-0');
+            setTimeout(() => {
+                recordingUI.classList.add('hidden');
+                summaryUI.classList.remove('hidden');
+                setTimeout(() => {
+                    summaryUI.classList.remove('opacity-0', 'translate-y-8');
+                }, 50);
+            }, 500);
+            
+            cameraFeed.classList.add('blur-2xl', 'opacity-10', 'scale-110');
+        }
+
+        function resetSession() {
+            elapsedTime = 0;
+            timerDisplay.textContent = "00:00";
+            summaryUI.classList.add('opacity-0', 'translate-y-8');
+            setTimeout(() => {
+                summaryUI.classList.add('hidden');
+                recordingUI.classList.remove('hidden', 'opacity-0');
+                startBtn.classList.remove('hidden');
+                activeControls.classList.add('hidden');
+                liveIndicator.classList.add('hidden');
+                sessionStatus.textContent = 'Focus Session';
+                timerDisplay.classList.remove('opacity-40');
+                cameraFeed.classList.remove('blur-2xl', 'opacity-10', 'scale-110');
+            }, 700);
+        }
+
+        function renderGraph() {
+            graphContainer.innerHTML = '<div class="absolute bottom-[26px] left-0 right-0 h-px bg-white/5"></div>';
+            weeklyData.forEach((item, idx) => {
+                const dayEl = document.createElement('div');
+                dayEl.className = "flex flex-col items-center gap-4 w-full h-full justify-end relative z-10";
+                
+                const barContainer = document.createElement('div');
+                barContainer.className = "relative w-1.5 h-[120px] flex items-end justify-center";
+                
+                const bar = document.createElement('div');
+                const isToday = idx === 4;
+                bar.className = `w-full rounded-full bar-transition ${isToday ? 'bg-white shadow-[0_0_25px_rgba(255,255,255,0.4)]' : 'bg-white/15'}`;
+                bar.style.height = '0%';
+                
+                barContainer.appendChild(bar);
+                dayEl.appendChild(barContainer);
+                
+                const label = document.createElement('span');
+                label.className = `text-[9px] font-mono tracking-widest ${isToday ? 'text-white font-bold' : 'text-white/25'}`;
+                label.textContent = item.day;
+                dayEl.appendChild(label);
+                
+                graphContainer.appendChild(dayEl);
+                
+                // Trigger animation
+                setTimeout(() => {
+                    bar.style.height = `${(item.hours / 6) * 100}%`;
+                }, 100 + (idx * 50));
+            });
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startSession);
+        pauseBtn.addEventListener('click', togglePause);
+        stopBtn.addEventListener('click', completeSession);
+        resetBtn.addEventListener('click', resetSession);
+
+        // Initial Load
+        window.onload = initCamera;
+
+    </script>
+</body>
+</html>
